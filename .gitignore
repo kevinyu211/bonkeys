@@ -1,0 +1,5 @@
+.build/
+dist/
+.DS_Store
+# Private working notes
+docs/DECISIONS.md
