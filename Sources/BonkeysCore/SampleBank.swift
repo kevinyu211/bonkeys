@@ -114,6 +114,10 @@ public struct SampleBank: Sendable {
     static func decode(_ url: URL) throws -> ([Float], Double) {
         let file = try AVAudioFile(forReading: url)
         let format = file.processingFormat
+        // The file's header picks these numbers, so check them before they size any memory.
+        guard (4_000...192_000).contains(format.sampleRate), (1...8).contains(format.channelCount), file.length > 0 else {
+            throw LoadError.missing(url.lastPathComponent)
+        }
         let limit = AVAudioFramePosition(format.sampleRate * maxSeconds)
         let cut = file.length > limit
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(min(file.length, limit))) else {

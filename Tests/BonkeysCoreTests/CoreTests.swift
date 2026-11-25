@@ -295,3 +295,25 @@ let resources = sounds.deletingLastPathComponent()
     #expect(out(4, 1, 10) <= 1)
     #expect(out(4, 0.4, 10) <= 0.4001)
 }
+
+/// A shared pack could hold a file whose header lies.
+@Test(arguments: [(1, 1), (3_999_999_999, 1), (44_100, 64)] as [(UInt32, UInt16)]) func brokenHeadersAreRefused(rate: UInt32, channels: UInt16) throws {
+    let file = try wav(rate: rate, channels: channels)
+    defer { try? FileManager.default.removeItem(at: file) }
+    #expect(throws: (any Error).self) { try SampleBank.decode(file) }
+}
+@Test func goodHeaderIsRead() throws {
+    let file = try wav(rate: 44_100, channels: 1)
+    defer { try? FileManager.default.removeItem(at: file) }
+    #expect(try SampleBank.decode(file).0.count == 2_048)
+}
+private func wav(rate: UInt32, channels: UInt16) throws -> URL {
+    let audio = Data(repeating: 1, count: 4_096 * Int(channels))
+    var d = Data()
+    func put<T: FixedWidthInteger>(_ v: T) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
+    d += Data("RIFF".utf8); put(UInt32(36 + audio.count)); d += Data("WAVEfmt ".utf8); put(UInt32(16)); put(UInt16(1)); put(channels)
+    put(rate); put(rate &* UInt32(channels) &* 2); put(channels &* 2); put(UInt16(16)); d += Data("data".utf8); put(UInt32(audio.count)); d += audio
+    let url = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).wav")
+    try d.write(to: url)
+    return url
+}
